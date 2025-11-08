@@ -256,19 +256,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
             isPausedByFocusLoss,
             recordingStartTime
         )
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
-            try {
-                notificationHelper.notificationManager.notify(
-                    NOTIFICATION_ID,
-                    notification
-                )
-            } catch (_: Exception) {
-                notificationHelper.notificationManager.notify(NOTIFICATION_ID, notification)
-            }
-        } else {
-            notificationHelper.notificationManager.notify(NOTIFICATION_ID, notification)
-        }
+        notificationHelper.postNotification(NOTIFICATION_ID, notification)
     }
 
     private fun startProgressUpdates() {

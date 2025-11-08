@@ -27,8 +27,12 @@ import com.nimith.echonote.presentation.features.recording.RecordingService
 
 class NotificationHelper(private val context: Context) {
 
-    val notificationManager =
+    private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    fun postNotification(notificationId: Int, notification: Notification) {
+        notificationManager.notify(notificationId, notification)
+    }
 
     fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
