@@ -81,10 +81,11 @@ fun DashboardScreen(
     val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         arrayOf(
             Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.POST_NOTIFICATIONS
+            Manifest.permission.POST_NOTIFICATIONS,
+            Manifest.permission.READ_PHONE_STATE
         )
     } else {
-        arrayOf(Manifest.permission.RECORD_AUDIO)
+        arrayOf(Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_PHONE_STATE)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -205,6 +206,7 @@ fun PermissionDeniedDialog(
         when (it) {
             Manifest.permission.RECORD_AUDIO -> "microphone"
             Manifest.permission.POST_NOTIFICATIONS -> "notifications"
+            Manifest.permission.READ_PHONE_STATE -> "phone state"
             else -> it.substringAfterLast('.')
         }
     }
