@@ -27,7 +27,7 @@ import com.nimith.echonote.presentation.features.recording.RecordingService
 
 class NotificationHelper(private val context: Context) {
 
-    private val notificationManager =
+    val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     fun createNotificationChannel() {
@@ -35,9 +35,10 @@ class NotificationHelper(private val context: Context) {
             val serviceChannel = NotificationChannel(
                 RECORDING_CHANNEL_ID,
                 RECORDING_CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = RECORDING_CHANNEL_DESCRIPTION
+                setSound(null, null)
             }
             notificationManager.createNotificationChannel(serviceChannel)
 
@@ -45,8 +46,10 @@ class NotificationHelper(private val context: Context) {
                 val liveUpdatesChannel = NotificationChannel(
                     LIVE_UPDATES_CHANNEL_ID,
                     LIVE_UPDATES_CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_DEFAULT
-                )
+                    NotificationManager.IMPORTANCE_LOW
+                ).apply {
+                    setSound(null, null)
+                }
                 notificationManager.createNotificationChannel(liveUpdatesChannel)
             }
         }
@@ -54,15 +57,13 @@ class NotificationHelper(private val context: Context) {
 
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     fun createLiveUpdateNotification(
-        contentText: String,
         isRecording: Boolean,
         isPausedByCall: Boolean,
         isPausedByFocusLoss: Boolean,
         recordingStartTime: Long
     ): Notification {
-        val stopIntent = Intent(context, RecordingService::class.java).apply {
-            action = ACTION_STOP
-        }
+        val stopIntent =
+            Intent(context, RecordingService::class.java).apply { action = ACTION_STOP }
         val stopPendingIntent = PendingIntent.getService(
             context,
             0,
@@ -70,31 +71,82 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val stopAction = Notification.Action.Builder(
-            Icon.createWithResource(context, R.drawable.ic_launcher_foreground),
-            ACTION_STOP_TEXT,
-            stopPendingIntent
-        ).build()
+        // 🎚 Calculate current progress of recording (0–100%)
+        val progressPercent = calculateRecordingProgress(recordingStartTime)
+
+        // 🟢 Build progress bar with segments & points
+        val progressStyle = Notification.ProgressStyle()
+            .setProgress(progressPercent)
+            .setProgressSegments(
+                listOf(
+                    Notification.ProgressStyle.Segment(25).setColor(Color.GREEN),
+                    Notification.ProgressStyle.Segment(25).setColor(Color.YELLOW),
+                    Notification.ProgressStyle.Segment(25).setColor(Color.RED),
+                    Notification.ProgressStyle.Segment(25).setColor(Color.LTGRAY)
+                )
+            )
+            .setProgressPoints(
+                listOf(
+                    Notification.ProgressStyle.Point(25).setColor(Color.CYAN),
+                    Notification.ProgressStyle.Point(50).setColor(Color.MAGENTA)
+                )
+            )
+            .setProgressTrackerIcon(
+                Icon.createWithResource(context, R.drawable.ic_launcher_foreground)
+            )
+
+        // 🧭 Decide state-specific visuals
+        val (title, text, color) = when {
+            isPausedByCall -> Triple("Recording paused 📞", "Paused due to phone call", "#FF9800")
+            isPausedByFocusLoss -> Triple("Recording paused ⏸️", "Audio focus lost", "#FFC107")
+            isRecording -> Triple("Recording 🎙️", "Recording in progress...", "#4CAF50")
+            else -> Triple("Recording stopped ⛔", "Tap to start new recording", "#9E9E9E")
+        }
 
         val builder = Notification.Builder(context, LIVE_UPDATES_CHANNEL_ID)
-            .setContentTitle(NOTIFICATION_TITLE)
-            .setContentText(contentText)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .addAction(stopAction)
-            .setOngoing(true)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setStyle(progressStyle)
+            .setOngoing(isRecording)
             .setColorized(true)
-            .setColor(Color.GRAY)
+            .setColor(Color.parseColor(color))
+            .setWhen(System.currentTimeMillis() - (SystemClock.elapsedRealtime() - recordingStartTime))
+            .setUsesChronometer(isRecording)
+            .setChronometerCountDown(false)
+            .addAction(
+                Notification.Action.Builder(
+                    Icon.createWithResource(context, R.drawable.ic_launcher_foreground),
+                    ACTION_STOP_TEXT,
+                    stopPendingIntent
+                ).build()
+            )
 
-        if (isRecording && !isPausedByCall && !isPausedByFocusLoss) {
-            builder.setChronometerCountDown(false)
-                .setUsesChronometer(true)
-                .setWhen(System.currentTimeMillis() - (SystemClock.elapsedRealtime() - recordingStartTime))
+        // Add Resume action only if paused due to focus loss
+        if (isPausedByFocusLoss) {
+            val resumeIntent =
+                Intent(context, RecordingService::class.java).apply { action = ACTION_RESUME }
+            val resumePendingIntent = PendingIntent.getService(
+                context,
+                1,
+                resumeIntent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(
+                Notification.Action.Builder(
+                    Icon.createWithResource(context, R.drawable.ic_launcher_foreground),
+                    ACTION_RESUME_TEXT,
+                    resumePendingIntent
+                ).build()
+            )
         }
+
         val notification = builder.build()
         notification.flags =
             notification.flags or Notification.FLAG_NO_CLEAR or Notification.FLAG_ONGOING_EVENT
         return notification
     }
+
 
     fun createNotification(
         contentText: String,
@@ -138,7 +190,11 @@ class NotificationHelper(private val context: Context) {
                 resumeIntent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
-            builder.addAction(R.drawable.ic_launcher_foreground, ACTION_RESUME_TEXT, resumePendingIntent)
+            builder.addAction(
+                R.drawable.ic_launcher_foreground,
+                ACTION_RESUME_TEXT,
+                resumePendingIntent
+            )
         }
 
         val notification = builder.build()
@@ -155,13 +211,12 @@ class NotificationHelper(private val context: Context) {
         isPausedByFocusLoss: Boolean,
         recordingStartTime: Long
     ): Notification {
-        return if (Build.VERSION.SDK_INT >= 36) { // Android 16+ (Baklava)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             createLiveUpdateNotification(
-                contentText,
                 isRecording,
                 isPausedByCall,
                 isPausedByFocusLoss,
-                recordingStartTime
+                recordingStartTime,
             )
         } else {
             createNotification(
@@ -173,6 +228,21 @@ class NotificationHelper(private val context: Context) {
                 isPausedByFocusLoss
             )
         }
+    }
+
+    fun calculateRecordingProgress(recordingStartTime: Long): Int {
+        if (recordingStartTime == 0L) return 0
+
+        /* Current elapsed time since recording started */
+        val elapsed = SystemClock.elapsedRealtime() - recordingStartTime
+
+        // Assume a max expected duration of 10 minutes (for progress visualization)
+        val maxDuration = 10 * 60 * 1000L // 10 minutes in milliseconds
+
+        // Calculate progress percentage (0 to 100)
+        return ((elapsed.toFloat() / maxDuration) * 100)
+            .toInt()
+            .coerceIn(0, 100)
     }
 
 }
