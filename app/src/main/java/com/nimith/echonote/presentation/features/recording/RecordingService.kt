@@ -16,7 +16,10 @@ import android.telephony.TelephonyManager
 import android.widget.Toast
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.nimith.echonote.data.local.model.Recording
+import com.nimith.echonote.data.local.model.TranscriptionStatus
 import com.nimith.echonote.data.recorder.AudioRecorder
+import com.nimith.echonote.data.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.Constants.ACTION_PAUSE
 import com.nimith.echonote.presentation.common.Constants.ACTION_RESUME
 import com.nimith.echonote.presentation.common.Constants.ACTION_START
@@ -43,6 +46,8 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
     lateinit var audioRecorder: AudioRecorder
     @Inject
     lateinit var notificationHelper: NotificationHelper
+    @Inject
+    lateinit var recordingRepository: RecordingRepository
 
     private var audioFocusRequest: AudioFocusRequest? = null
 
@@ -52,6 +57,8 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
     private var timeWhenPaused: Long = 0
     private var lastAmplitude: Int = 0
     private var silenceStartTime: Long = 0
+
+    private var currentRecordingId: Long? = null
 
     private val phoneStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -135,13 +142,23 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         }
 
         if (requestAudioFocus()) {
-            isRecording = true
-            recordingStartTime = SystemClock.elapsedRealtime()
-            audioRecorder.start()
-            startSilenceDetection()
-            isPausedByCall = false
-            isPausedByFocusLoss = false
-            updateNotification("Recording")
+            lifecycleScope.launch {
+                val newRecording = Recording(
+                    title = "Recording ${System.currentTimeMillis()}",
+                    createdAt = System.currentTimeMillis(),
+                    duration = 0,
+                    transcriptionStatus = TranscriptionStatus.IN_PROGRESS
+                )
+                currentRecordingId = recordingRepository.insertRecording(newRecording)
+
+                isRecording = true
+                recordingStartTime = SystemClock.elapsedRealtime()
+                audioRecorder.start(currentRecordingId!!)
+                startSilenceDetection()
+                isPausedByCall = false
+                isPausedByFocusLoss = false
+                updateNotification("Recording")
+            }
         }
     }
 
@@ -152,6 +169,17 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
         lifecycleScope.launch {
             audioRecorder.stop()
+            currentRecordingId?.let {
+                val recording = recordingRepository.getRecording(it)
+                recording?.let {
+                    val duration = SystemClock.elapsedRealtime() - recordingStartTime
+                    val updatedRecording = it.copy(
+                        duration = duration,
+                        transcriptionStatus = TranscriptionStatus.COMPLETED
+                    )
+                    recordingRepository.updateRecording(updatedRecording)
+                }
+            }
         }
         releaseAudioFocus()
         stopSilenceDetection()
@@ -218,10 +246,15 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
             return
         }
 
-        audioRecorder.start()
-        recordingStartTime = SystemClock.elapsedRealtime() - timeWhenPaused
-        startSilenceDetection()
-        updateNotification("Recording")
+        lifecycleScope.launch {
+            currentRecordingId?.let {
+                val lastChunkIndex = recordingRepository.getLastChunkIndex(it)
+                audioRecorder.start(it, lastChunkIndex)
+                recordingStartTime = SystemClock.elapsedRealtime() - timeWhenPaused
+                startSilenceDetection()
+                updateNotification("Recording")
+            }
+        }
     }
 
     private fun updateNotification(contentText: String, addResumeAction: Boolean = false) {

@@ -4,7 +4,11 @@ import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
+import com.nimith.echonote.data.local.model.AudioChunk
+import com.nimith.echonote.data.local.model.UploadStatus
+import com.nimith.echonote.data.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.FileUtils
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,30 +16,36 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
+import javax.inject.Inject
 
-class AudioRecorder(private val context: Context) {
+class AudioRecorder @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+    private val recordingRepository: RecordingRepository
+) {
 
     @Volatile
     private var recorder: MediaRecorder? = null
     private var recordingJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO)
+    private var chunkIndex = 0
 
-
-    fun start() {
+    fun start(recordingId: Long, lastChunkIndex: Int? = null) {
         if (recordingJob?.isActive == true) {
             Log.i(LOG_TAG, "Recording already in progress")
             return
         }
+        chunkIndex = lastChunkIndex?.plus(1) ?: 0
         recordingJob = scope.launch {
             while (true) {
-                launch { recordChunk() }
+                launch { recordChunk(recordingId, chunkIndex++) }
                 delay(CHUNK_DURATION_MS - CHUNK_OVERLAP_MS)
             }
         }
     }
 
-    private suspend fun recordChunk() {
-        val newRecorder = createRecorder()
+    private suspend fun recordChunk(recordingId: Long, chunkIndex: Int) {
+        val filePath = FileUtils.getRecordingFilePath(context, recordingId, chunkIndex)
+        val newRecorder = createRecorder(filePath)
         try {
             newRecorder.prepare()
             newRecorder.start()
@@ -54,6 +64,14 @@ class AudioRecorder(private val context: Context) {
             try {
                 // It's possible for stop() to throw an exception if the recording was never started
                 newRecorder.stop()
+                val audioChunk = AudioChunk(
+                    recordingId = recordingId,
+                    chunkIndex = chunkIndex,
+                    filePath = filePath,
+                    transcribedText = null,
+                    uploadStatus = UploadStatus.PENDING
+                )
+                recordingRepository.insertChunk(audioChunk)
             } catch (e: RuntimeException) {
                 // Ignore if stop() is called after an error or if not started
                 Log.w(LOG_TAG, "Stop failed for recording chunk", e)
@@ -65,7 +83,7 @@ class AudioRecorder(private val context: Context) {
         }
     }
 
-    private fun createRecorder(): MediaRecorder {
+    private fun createRecorder(filePath: String): MediaRecorder {
         return (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             MediaRecorder(context)
         } else {
@@ -75,7 +93,7 @@ class AudioRecorder(private val context: Context) {
             setAudioSource(MediaRecorder.AudioSource.MIC)
             setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
             setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-            setOutputFile(FileUtils.getRecordingFilePath(context))
+            setOutputFile(filePath)
         }
     }
 
