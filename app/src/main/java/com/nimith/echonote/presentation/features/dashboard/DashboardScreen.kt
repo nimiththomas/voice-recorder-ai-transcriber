@@ -1,5 +1,14 @@
 package com.nimith.echonote.presentation.features.dashboard
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -18,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -30,23 +40,27 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nimith.echonote.R
@@ -55,11 +69,73 @@ import com.nimith.echonote.ui.theme.DateColor
 import com.nimith.echonote.ui.theme.TextColor
 
 @Composable
-fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
+fun DashboardScreen(
+    viewModel: DashboardViewModel = viewModel(),
+    onNavigateToRecording: () -> Unit
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var showPermissionDeniedDialogFor by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    val context = LocalContext.current
+    val activity = LocalActivity.current
+
+    val requiredPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.POST_NOTIFICATIONS
+        )
+    } else {
+        arrayOf(Manifest.permission.RECORD_AUDIO)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissionsMap ->
+            val deniedPermissions = permissionsMap.filter { !it.value }.keys
+            if (deniedPermissions.isEmpty()) {
+                onNavigateToRecording()
+            } else {
+                showPermissionDeniedDialogFor = deniedPermissions.toList()
+            }
+        }
+    )
+
+    if (showPermissionDeniedDialogFor.isNotEmpty()) {
+        val shouldShowRationale = showPermissionDeniedDialogFor.any {
+            activity?.shouldShowRequestPermissionRationale(it) == true
+        }
+
+        PermissionDeniedDialog(
+            onDismiss = { showPermissionDeniedDialogFor = emptyList() },
+            onConfirm = {
+                showPermissionDeniedDialogFor = emptyList()
+                if (shouldShowRationale) {
+                    permissionLauncher.launch(requiredPermissions)
+                } else {
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }
+            },
+            goToSettings = !shouldShowRationale,
+            deniedPermissions = showPermissionDeniedDialogFor
+        )
+    }
+
     DashboardContent(
         state = state,
-        onDeleteTranscript = viewModel::onDeleteTranscript
+        onDeleteTranscript = viewModel::onDeleteTranscript,
+        onCaptureNotesClick = {
+            val permissionsToRequest = requiredPermissions.filter {
+                ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+            }.toTypedArray()
+
+            if (permissionsToRequest.isEmpty()) {
+                onNavigateToRecording()
+            } else {
+                permissionLauncher.launch(permissionsToRequest)
+            }
+        }
     )
 }
 
@@ -67,7 +143,8 @@ fun DashboardScreen(viewModel: DashboardViewModel = viewModel()) {
 @Composable
 fun DashboardContent(
     state: DashboardState,
-    onDeleteTranscript: (String) -> Unit
+    onDeleteTranscript: (String) -> Unit,
+    onCaptureNotesClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -75,13 +152,13 @@ fun DashboardContent(
                 title = { Text(stringResource(id = R.string.dashboard_title)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor =TextColor
+                    titleContentColor = TextColor
                 )
             )
         },
         bottomBar = {
             Button(
-                onClick = { /* TODO */ },
+                onClick = onCaptureNotesClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
@@ -116,6 +193,47 @@ fun DashboardContent(
         }
     }
 }
+
+@Composable
+fun PermissionDeniedDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    goToSettings: Boolean,
+    deniedPermissions: List<String>
+) {
+    val permissionNames = deniedPermissions.joinToString {
+        when (it) {
+            Manifest.permission.RECORD_AUDIO -> "microphone"
+            Manifest.permission.POST_NOTIFICATIONS -> "notifications"
+            else -> it.substringAfterLast('.')
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.permission_denied_title)) },
+        text = {
+            Text(
+                if (goToSettings) stringResource(R.string.permission_denied_settings_message, permissionNames)
+                else stringResource(R.string.mandatory_permission_message, permissionNames)
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(
+                    if (goToSettings) stringResource(R.string.go_to_settings)
+                    else stringResource(R.string.grant_permission)
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        }
+    )
+}
+
 
 @Composable
 fun TranscriptListItem(transcript: TranscriptItem, onDelete: () -> Unit) {
@@ -204,6 +322,10 @@ fun DashboardContentPreview() {
             TranscriptItem("3", "Brainstorming Session", "2:00 PM", "15m")
         )
     )
-    DashboardContent(state = DashboardState(transcripts)) {}
+    DashboardContent(
+        state = DashboardState(transcripts),
+        onDeleteTranscript = {},
+        onCaptureNotesClick = {}
+    )
 
 }

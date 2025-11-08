@@ -4,4 +4,14 @@
     <string name="capture_notes_button">Capture Notes</string>
     <string name="transcript_icon_content_description">Transcript Icon</string>
     <string name="delete_menu_item">Delete</string>
+    <string name="permission_denied_title">Permission Denied</string>
+    <string name="permission_denied_message">To use this feature, you need to grant the microphone permission. Please grant the permission to continue.</string>
+    <string name="permission_denied_settings_message">You have denied the microphone permission multiple times. To use this feature, please enable the permission in the app settings.</string>
+    <string name="mandatory_permission_message">To use this feature, you need to grant the %1$s permission. Please grant the permission to continue.</string>
+    <string name="go_to_settings">Go to Settings</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="notification_permission_title">Enable Notifications</string>
+    <string name="notification_permission_message">To ensure the app functions correctly during background recording, please allow notifications. This is due to OS restrictions.</string>
+    <string name="allow">Allow</string>
+    <string name="continue_without">Continue without</string>
 </resources>

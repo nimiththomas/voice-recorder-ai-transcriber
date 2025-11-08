@@ -5,6 +5,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.nimith.echonote.presentation.features.dashboard.DashboardScreen
+import com.nimith.echonote.presentation.features.recording.RecordingScreen
 
 @Composable
 fun EchoNoteNavGraph() {
@@ -14,7 +15,14 @@ fun EchoNoteNavGraph() {
         startDestination = Screen.Dashboard
     ) {
         composable<Screen.Dashboard> {
-            DashboardScreen()
+            DashboardScreen {
+                navController.navigate(Screen.Recording)
+            }
+        }
+        composable<Screen.Recording> {
+            RecordingScreen {
+                navController.popBackStack()
+            }
         }
     }
 }
