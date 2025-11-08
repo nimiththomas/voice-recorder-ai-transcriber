@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">echonote</string>
+    <string name="dashboard_title">Dashboard</string>
+    <string name="capture_notes_button">Capture Notes</string>
+    <string name="transcript_icon_content_description">Transcript Icon</string>
+    <string name="delete_menu_item">Delete</string>
+</resources>
