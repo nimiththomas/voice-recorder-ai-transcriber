@@ -177,26 +177,41 @@ fun DashboardContent(
             }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(16.dp)
-        ) {
-            state.transcripts.forEach { (date, transcripts) ->
-                item {
-                    Text(
-                        text = date,
-                        color = DateColor,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
-                items(transcripts) { transcript ->
-                    TranscriptListItem(transcript, onDelete = {
-                        onDeleteTranscript(transcript.id)
-                    }, onClick = { onTranscriptClick(transcript.id) })
+        if (state.transcripts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(id = R.string.no_meetings_yet),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+            ) {
+                state.transcripts.forEach { (date, transcripts) ->
+                    item {
+                        Text(
+                            text = date,
+                            color = DateColor,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+                    items(transcripts) { transcript ->
+                        TranscriptListItem(transcript, onDelete = {
+                            onDeleteTranscript(transcript.id)
+                        }, onClick = { onTranscriptClick(transcript.id) })
+                    }
                 }
             }
         }
@@ -343,4 +358,15 @@ fun DashboardContentPreview() {
         onTranscriptClick = {}
     )
 
+}
+
+@Preview(showBackground = true, name = "Empty State")
+@Composable
+fun DashboardContentEmptyPreview() {
+    DashboardContent(
+        state = DashboardState(emptyMap()),
+        onDeleteTranscript = {},
+        onCaptureNotesClick = {},
+        onTranscriptClick = {}
+    )
 }

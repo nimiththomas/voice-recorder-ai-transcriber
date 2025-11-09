@@ -18,4 +18,5 @@
     <string name="stop_recording_dialog_title">Stop Recording?</string>
     <string name="stop_recording_dialog_text">If you go back, the recording will be stopped and saved. Are you sure you want to continue?</string>
     <string name="stop_recording_dialog_confirm">Stop &amp; Save</string>
+    <string name="no_meetings_yet">No meetings yet</string>
 </resources>
