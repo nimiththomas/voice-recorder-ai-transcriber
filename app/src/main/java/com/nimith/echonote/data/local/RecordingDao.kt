@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
 import com.nimith.echonote.data.local.model.Recording
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface RecordingDao {
@@ -15,5 +16,8 @@ interface RecordingDao {
     suspend fun updateRecording(recording: Recording)
 
     @Query("SELECT * FROM recordings WHERE id = :id")
-    suspend fun getRecording(id: Long): Recording?
+    fun getRecording(id: Long): Flow<Recording?>
+
+    @Query("SELECT * FROM recordings ORDER BY createdAt DESC LIMIT 1")
+    fun getLatestRecording(): Flow<Recording?>
 }

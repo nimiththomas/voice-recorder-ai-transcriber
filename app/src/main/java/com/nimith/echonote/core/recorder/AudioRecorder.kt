@@ -1,13 +1,18 @@
-package com.nimith.echonote.data.recorder
+package com.nimith.echonote.core.recorder
 
 import android.content.Context
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
+import androidx.work.BackoffPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.nimith.echonote.data.local.model.AudioChunk
 import com.nimith.echonote.data.local.model.UploadStatus
 import com.nimith.echonote.domain.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.FileUtils
+import com.nimith.echonote.worker.TranscriptionWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +21,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 class AudioRecorder @Inject constructor(
@@ -44,7 +50,7 @@ class AudioRecorder @Inject constructor(
     }
 
     private suspend fun recordChunk(recordingId: Long, chunkIndex: Int) {
-        val filePath = FileUtils.getRecordingFilePath(context, recordingId, chunkIndex)
+        val filePath = FileUtils.getRecordingChunkPath(context, recordingId, chunkIndex)
         val newRecorder = createRecorder(filePath)
         try {
             newRecorder.prepare()
@@ -68,10 +74,26 @@ class AudioRecorder @Inject constructor(
                     recordingId = recordingId,
                     chunkIndex = chunkIndex,
                     filePath = filePath,
-                    transcribedText = null,
-                    uploadStatus = UploadStatus.PENDING
+                    transcription = null,
+                    uploadStatus = UploadStatus.PENDING,
+                    createdAt = System.currentTimeMillis()
                 )
                 recordingRepository.insertChunk(audioChunk)
+
+                val workRequest = OneTimeWorkRequestBuilder<TranscriptionWorker>()
+                    .setInputData(
+                        workDataOf(
+                            "recordingId" to recordingId,
+                            "chunkIndex" to chunkIndex
+                        )
+                    )
+                    .setBackoffCriteria(
+                        BackoffPolicy.EXPONENTIAL,
+                        1, TimeUnit.MINUTES
+                    )
+                    .build()
+                WorkManager.getInstance(context).enqueue(workRequest)
+
             } catch (e: RuntimeException) {
                 // Ignore if stop() is called after an error or if not started
                 Log.w(LOG_TAG, "Stop failed for recording chunk", e)

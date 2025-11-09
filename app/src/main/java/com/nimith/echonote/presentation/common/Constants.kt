@@ -9,9 +9,14 @@ object Constants {
     const val RECORDING_CHANNEL_ID = "RecordingChannel"
     const val RECORDING_CHANNEL_NAME = "Recording Channel"
     const val RECORDING_CHANNEL_DESCRIPTION = "Channel for the foreground recording service"
+    const val TRANSCRIPTION_CHANNEL_ID = "TranscriptionChannel"
+    const val TRANSCRIPTION_CHANNEL_NAME = "Transcription Channel"
     const val LIVE_UPDATES_CHANNEL_ID = "LiveUpdatesChannel"
     const val LIVE_UPDATES_CHANNEL_NAME = "Live Updates Channel"
+
     const val NOTIFICATION_ID = 1
+    const val TRANSCRIPTION_NOTIFICATION_ID = 2
+
     const val NOTIFICATION_TITLE = "EchoNote Recording"
 
     const val ACTION_STOP_TEXT = "Stop"

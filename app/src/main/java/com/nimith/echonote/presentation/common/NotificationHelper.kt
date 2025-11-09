@@ -23,6 +23,8 @@ import com.nimith.echonote.presentation.common.Constants.NOTIFICATION_TITLE
 import com.nimith.echonote.presentation.common.Constants.RECORDING_CHANNEL_DESCRIPTION
 import com.nimith.echonote.presentation.common.Constants.RECORDING_CHANNEL_ID
 import com.nimith.echonote.presentation.common.Constants.RECORDING_CHANNEL_NAME
+import com.nimith.echonote.presentation.common.Constants.TRANSCRIPTION_CHANNEL_ID
+import com.nimith.echonote.presentation.common.Constants.TRANSCRIPTION_CHANNEL_NAME
 import com.nimith.echonote.presentation.features.recording.RecordingService
 
 class NotificationHelper(private val context: Context) {
@@ -46,6 +48,15 @@ class NotificationHelper(private val context: Context) {
             }
             notificationManager.createNotificationChannel(serviceChannel)
 
+            val transcriptionChannel = NotificationChannel(
+                TRANSCRIPTION_CHANNEL_ID,
+                TRANSCRIPTION_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                setSound(null, null)
+            }
+            notificationManager.createNotificationChannel(transcriptionChannel)
+
             if (Build.VERSION.SDK_INT >= 35) {
                 val liveUpdatesChannel = NotificationChannel(
                     LIVE_UPDATES_CHANNEL_ID,
@@ -57,6 +68,14 @@ class NotificationHelper(private val context: Context) {
                 notificationManager.createNotificationChannel(liveUpdatesChannel)
             }
         }
+    }
+
+    fun createTranscriptionNotification(): Notification {
+        return NotificationCompat.Builder(context, TRANSCRIPTION_CHANNEL_ID)
+            .setContentTitle("Transcription in progress")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setOngoing(true)
+            .build()
     }
 
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)

@@ -1,9 +1,14 @@
 package com.nimith.echonote.presentation.features.recording
 
+data class Transcript(
+    val text: String,
+    val time: String
+)
+
 data class RecordingState(
-    val isLoading: Boolean = true,
+    val isRecording: Boolean = true,
     val timer: String = "00:00",
     val summary: String = "",
-    val transcript: String = "",
+    val transcripts: List<Transcript> = emptyList(),
     val actionItems: List<String> = emptyList()
 )

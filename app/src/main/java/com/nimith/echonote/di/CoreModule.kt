@@ -5,7 +5,7 @@ import android.media.AudioManager
 import com.nimith.echonote.core.network.SafeApiCaller
 import com.nimith.echonote.data.local.AudioChunkDao
 import com.nimith.echonote.data.local.EchoNoteDatabase
-import com.nimith.echonote.data.recorder.AudioRecorder
+import com.nimith.echonote.core.recorder.AudioRecorder
 import com.nimith.echonote.domain.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.NotificationHelper
 import dagger.Module

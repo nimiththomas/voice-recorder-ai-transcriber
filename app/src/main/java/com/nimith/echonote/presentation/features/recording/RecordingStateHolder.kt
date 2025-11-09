@@ -8,7 +8,8 @@ import javax.inject.Singleton
 
 data class RecordingServiceState(
     val isRecording: Boolean = false,
-    val timerMillis: Long = 0L
+    val timerMillis: Long = 0L,
+    val recordingId: Long? = null
 )
 
 @Singleton

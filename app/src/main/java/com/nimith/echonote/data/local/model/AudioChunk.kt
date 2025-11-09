@@ -30,6 +30,7 @@ data class AudioChunk(
     val recordingId: Long,
     val chunkIndex: Int,
     val filePath: String,
-    val transcribedText: String?,
-    val uploadStatus: UploadStatus
+    var transcription: String?,
+    var uploadStatus: UploadStatus,
+    val createdAt: Long
 )

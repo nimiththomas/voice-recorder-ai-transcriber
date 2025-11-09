@@ -5,6 +5,7 @@ import com.nimith.echonote.data.local.RecordingDao
 import com.nimith.echonote.data.local.model.AudioChunk
 import com.nimith.echonote.data.local.model.Recording
 import com.nimith.echonote.domain.repository.RecordingRepository
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class RecordingRepositoryImpl @Inject constructor(
@@ -15,7 +16,7 @@ class RecordingRepositoryImpl @Inject constructor(
         return recordingDao.insertRecording(recording)
     }
 
-    override suspend fun getRecording(id: Long): Recording? {
+    override fun getRecording(id: Long): Flow<Recording?> {
         return recordingDao.getRecording(id)
     }
 
@@ -29,5 +30,25 @@ class RecordingRepositoryImpl @Inject constructor(
 
     override suspend fun insertChunk(chunk: AudioChunk): Long {
         return audioChunkDao.insertChunk(chunk)
+    }
+
+    override fun getLatestRecording(): Flow<Recording?> {
+        return recordingDao.getLatestRecording()
+    }
+
+    override fun getChunksForRecording(recordingId: Long): Flow<List<AudioChunk>> {
+        return audioChunkDao.getChunksForRecording(recordingId)
+    }
+
+    override suspend fun getChunk(recordingId: Long, chunkIndex: Int): AudioChunk? {
+        return audioChunkDao.getChunk(recordingId, chunkIndex)
+    }
+
+    override suspend fun updateChunk(chunk: AudioChunk) {
+        audioChunkDao.updateChunk(chunk)
+    }
+
+    override fun getCompletedChunksForRecording(recordingId: Long): Flow<List<AudioChunk>> {
+        return audioChunkDao.getCompletedChunksForRecording(recordingId)
     }
 }

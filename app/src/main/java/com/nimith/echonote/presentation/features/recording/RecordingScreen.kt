@@ -3,7 +3,9 @@ package com.nimith.echonote.presentation.features.recording
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,8 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Circle
@@ -23,6 +27,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -67,7 +72,6 @@ fun RecordingScreen(
     var showStopRecordingDialog by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        viewModel.onStart()
         viewModel.action.collectLatest { action ->
             when (action) {
                 is RecordingAction.Service -> {
@@ -78,6 +82,7 @@ fun RecordingScreen(
             }
         }
     }
+
 
     if (showStopRecordingDialog) {
         AlertDialog(
@@ -101,7 +106,7 @@ fun RecordingScreen(
         )
     }
 
-    BackHandler(enabled = state.isLoading) {
+    BackHandler(enabled = state.isRecording) {
         showStopRecordingDialog = true
     }
 
@@ -109,7 +114,7 @@ fun RecordingScreen(
         state = state,
         onStopRecording = viewModel::onStopRecording,
         onNavigateBack = {
-            if (state.isLoading) {
+            if (state.isRecording) {
                 showStopRecordingDialog = true
             } else {
                 onNavigateBack()
@@ -126,11 +131,11 @@ fun RecordingContent(
     onNavigateBack: () -> Unit
 ) {
     val tabs = listOf("Summary", "Transcript")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val pagerState = rememberPagerState(pageCount = { tabs.size }, initialPage = 1)
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(state.isLoading) {
-        if (!state.isLoading) {
+    LaunchedEffect(state.isRecording) {
+        if (!state.isRecording) {
             coroutineScope.launch {
                 pagerState.animateScrollToPage(0)
             }
@@ -141,7 +146,7 @@ fun RecordingContent(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    if (state.isLoading) {
+                    if (state.isRecording) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Default.Circle,
@@ -171,7 +176,7 @@ fun RecordingContent(
             )
         },
         bottomBar = {
-            if (state.isLoading) {
+            if (state.isRecording) {
                 Button(
                     onClick = onStopRecording,
                     modifier = Modifier
@@ -189,7 +194,21 @@ fun RecordingContent(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            PrimaryTabRow(selectedTabIndex = pagerState.currentPage) {
+            PrimaryTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                indicator = {
+                    Box(
+                        Modifier
+                            .tabIndicatorOffset(pagerState.currentPage)
+                            .fillMaxWidth() // Fills full width of the *tab*
+                            .height(3.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                            )
+                    )
+                }
+            ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(
                         selected = pagerState.currentPage == index,
@@ -198,10 +217,12 @@ fun RecordingContent(
                                 pagerState.animateScrollToPage(index)
                             }
                         },
-                        text = { Text(text = title) }
+                        text = { Text(text = title) },
+                        modifier = Modifier.weight(1f) // makes each tab take equal space
                     )
                 }
             }
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier
@@ -219,38 +240,42 @@ fun RecordingContent(
 
 @Composable
 fun SummaryScreen(state: RecordingState) {
-    if (state.isLoading) {
+    if (state.isRecording) {
         SummaryLoading()
     } else {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-        ) {
-            item {
-                Text(
-                    text = "Poetic Expression",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
-            item {
-                BulletPoint("Speaker makes lyrical statement about roses being everywhere")
-                BulletPoint("Requests to see a \"pretty flower\" in specific location (\"right there\")")
-                BulletPoint("Brief, romantic or appreciative tone regarding flowers/nature")
-            }
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Action Items",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                Text(
-                    text = "No specific action items identified from this brief poetic expression",
-                    color = DateColor,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                item {
+                    Text(
+                        text = "Poetic Expression",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+                item {
+                    BulletPoint("Speaker makes lyrical statement about roses being everywhere")
+                    BulletPoint(
+                        "Requests to see a \"pretty flower\\n                    \" in specific location (\\\" right there\\n                    \\\")"
+                    )
+                    BulletPoint("Brief, romantic or appreciative tone regarding flowers/nature")
+                }
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Action Items",
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    Text(
+                        text = "No specific action items identified from this brief poetic expression",
+                        color = DateColor,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
             }
         }
     }
@@ -276,7 +301,7 @@ fun BulletPoint(text: String) {
 
 @Composable
 fun TranscriptScreen(state: RecordingState) {
-    if (state.isLoading) {
+    if (state.transcripts.isEmpty()) {
         LiveTranscriptLoading()
     } else {
         LazyColumn(
@@ -284,17 +309,21 @@ fun TranscriptScreen(state: RecordingState) {
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            item {
-                Text(
-                    "11:36",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    color = TextColor
-                )
-                Text(
-                    "Roses, roses everywhere. Can I see my pretty flower right there?",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = TextColor
-                )
+            items(state.transcripts) { transcript ->
+                Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                    Text(
+                        text = transcript.time,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = DateColor,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Text(
+                        text = transcript.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextColor
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(top = 16.dp))
+                }
             }
         }
     }
@@ -357,7 +386,13 @@ fun SummaryLoading() {
 @Composable
 fun RecordingScreenPreview() {
     RecordingContent(
-        state = RecordingState(isLoading = false),
+        state = RecordingState(
+            isRecording = false,
+            transcripts = listOf(
+                Transcript("Roses, roses everywhere.", "12:14"),
+                Transcript("Can I see my pretty flower right there?", "12:15")
+            )
+        ),
         onStopRecording = {},
         onNavigateBack = {}
     )
@@ -367,7 +402,7 @@ fun RecordingScreenPreview() {
 @Composable
 fun RecordingScreenLoadingPreview() {
     RecordingContent(
-        state = RecordingState(isLoading = true, timer = "00:15"),
+        state = RecordingState(isRecording = true, timer = "00:15"),
         onStopRecording = {},
         onNavigateBack = {}
     )

@@ -17,9 +17,11 @@ import android.widget.Toast
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.nimith.echonote.data.local.model.Recording
+import com.nimith.echonote.data.local.model.ServiceState
 import com.nimith.echonote.data.local.model.TranscriptionStatus
-import com.nimith.echonote.data.recorder.AudioRecorder
+import com.nimith.echonote.core.recorder.AudioRecorder
 import com.nimith.echonote.domain.repository.RecordingRepository
+import com.nimith.echonote.domain.repository.ServiceStateRepository
 import com.nimith.echonote.presentation.common.Constants.ACTION_PAUSE
 import com.nimith.echonote.presentation.common.Constants.ACTION_RESUME
 import com.nimith.echonote.presentation.common.Constants.ACTION_START
@@ -30,6 +32,8 @@ import com.nimith.echonote.presentation.common.StorageUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -51,6 +55,9 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
     @Inject
     lateinit var recordingRepository: RecordingRepository
+
+    @Inject
+    lateinit var serviceStateRepository: ServiceStateRepository
 
     @Inject
     lateinit var stateHolder: RecordingStateHolder
@@ -128,26 +135,36 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
-        when (intent?.action) {
-            ACTION_START -> start()
-            ACTION_PAUSE -> pauseRecording()
-            ACTION_RESUME -> resumeRecording()
-            ACTION_STOP -> stop()
+        if (intent == null) {
+            handleRestart()
+        } else {
+            when (intent.action) {
+                ACTION_START -> start()
+                ACTION_PAUSE -> pauseRecording()
+                ACTION_RESUME -> resumeRecording()
+                ACTION_STOP -> stop()
+            }
         }
         return START_STICKY
     }
 
     private fun start() {
-        if (isRecording) return
+        lifecycleScope.launch {
+            if (isRecording) return@launch
 
-        if (!StorageUtils.isStorageAvailable(this)) {
-            Toast.makeText(this, "Recording stopped - Low storage", Toast.LENGTH_LONG).show()
-            stopSelf()
-            return
-        }
+            val previousState = serviceStateRepository.serviceState.first()
+            if (previousState?.isRecording == true) {
+                handleRestart()
+                return@launch
+            }
 
-        if (requestAudioFocus()) {
-            lifecycleScope.launch {
+            if (!StorageUtils.isStorageAvailable(this@RecordingService)) {
+                Toast.makeText(this@RecordingService, "Recording stopped - Low storage", Toast.LENGTH_LONG).show()
+                stopSelf()
+                return@launch
+            }
+
+            if (requestAudioFocus()) {
                 val newRecording = Recording(
                     title = "Recording ${System.currentTimeMillis()}",
                     createdAt = System.currentTimeMillis(),
@@ -158,7 +175,15 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
                 isRecording = true
                 recordingStartTime = SystemClock.elapsedRealtime()
-                stateHolder.update { it.copy(isRecording = true, timerMillis = 0L) }
+                serviceStateRepository.saveServiceState(
+                    ServiceState(
+                        isRecording = true,
+                        recordingId = currentRecordingId!!,
+                        startTimeElapsed = recordingStartTime
+                    )
+                )
+
+                stateHolder.update { it.copy(isRecording = true, timerMillis = 0L, recordingId = currentRecordingId) }
                 audioRecorder.start(currentRecordingId!!)
                 startSilenceDetection()
                 startProgressUpdates()
@@ -171,23 +196,27 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
     private fun stop() {
         if (!isRecording) return
+
+        lifecycleScope.launch {
+            serviceStateRepository.clearServiceState()
+        }
+
         isRecording = false
 
         lifecycleScope.launch {
             audioRecorder.stop()
             currentRecordingId?.let {
-                val recording = recordingRepository.getRecording(it)
+                val recording = recordingRepository.getRecording(it).firstOrNull()
                 recording?.let { rec ->
                     val duration = SystemClock.elapsedRealtime() - recordingStartTime
                     val updatedRecording = rec.copy(
                         duration = duration,
-                        transcriptionStatus = TranscriptionStatus.COMPLETED
                     )
                     recordingRepository.updateRecording(updatedRecording)
                 }
             }
         }
-        stateHolder.update { it.copy(isRecording = false) }
+        stateHolder.update { it.copy(isRecording = false, recordingId = null) }
 
         releaseAudioFocus()
         stopSilenceDetection()
@@ -230,7 +259,8 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         }
 
         if (isPausedByCall || isPausedByFocusLoss) {
-            if (isPausedByCall) updateNotification("Paused - Phone call")
+            if (isPausedByCall) updateNotification(
+                "Paused - Phone call")
             else updateNotification("Paused - Audio focus lost", addResumeAction = true)
             return
         }
@@ -254,6 +284,36 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         }
     }
 
+    private fun handleRestart() {
+        lifecycleScope.launch {
+            val serviceState = serviceStateRepository.serviceState.first()
+            if (serviceState?.isRecording == true) {
+                currentRecordingId = serviceState.recordingId
+                recordingStartTime = serviceState.startTimeElapsed
+                isRecording = true
+
+                stateHolder.update {
+                    it.copy(
+                        isRecording = true,
+                        timerMillis = SystemClock.elapsedRealtime() - recordingStartTime,
+                        recordingId = currentRecordingId
+                    )
+                }
+
+                if (requestAudioFocus()) {
+                    val lastChunkIndex = recordingRepository.getLastChunkIndex(currentRecordingId!!)
+                    audioRecorder.start(currentRecordingId!!, lastChunkIndex)
+                    startSilenceDetection()
+                    startProgressUpdates()
+                    updateNotification("Recording")
+                } else {
+                    Toast.makeText(this@RecordingService, "Could not regain audio focus on restart.", Toast.LENGTH_SHORT).show()
+                    stop()
+                }
+            }
+        }
+    }
+
     private fun updateNotification(contentText: String, addResumeAction: Boolean = false) {
         val notification = notificationHelper.buildNotificationForUpdate(
             contentText,
@@ -268,7 +328,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
     private fun startProgressUpdates() {
         stopProgressUpdates()
-        progressUpdateJob = lifecycleScope.launch {
+        progressUpdateJob = lifecycleScope.launch { 
             while (isRecording && !isPausedByCall && !isPausedByFocusLoss) {
                 val elapsedMillis = SystemClock.elapsedRealtime() - recordingStartTime
                 stateHolder.update { it.copy(timerMillis = elapsedMillis) }
@@ -312,7 +372,10 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         when (focusChange) {
             AudioManager.AUDIOFOCUS_LOSS -> if (isRecording) pauseRecording(isCall = false)
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> if (isRecording) pauseRecording(isCall = false)
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> if (isRecording) pauseRecording(
+                isCall = false
+            )
+
             AudioManager.AUDIOFOCUS_GAIN -> if (isPausedByFocusLoss) resumeRecording(isCall = false)
         }
     }
@@ -322,17 +385,20 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
             audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(
                     android.media.AudioAttributes.Builder()
-                        .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                         .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                 )
-                .setAcceptsDelayedFocusGain(true)
                 .setOnAudioFocusChangeListener(this)
                 .build()
             audioManager.requestAudioFocus(audioFocusRequest!!)
         } else {
             @Suppress("DEPRECATION")
-            audioManager.requestAudioFocus(this, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN)
+            audioManager.requestAudioFocus(
+                this,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
         }
         return result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
     }
@@ -344,13 +410,5 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
             @Suppress("DEPRECATION")
             audioManager.abandonAudioFocus(this)
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (isRecording) stop()
-        stopProgressUpdates()
-        unregisterReceiver(phoneStateReceiver)
-        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
     }
 }

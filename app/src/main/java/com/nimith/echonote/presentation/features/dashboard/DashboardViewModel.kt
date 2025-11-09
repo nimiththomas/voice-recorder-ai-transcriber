@@ -1,12 +1,20 @@
 package com.nimith.echonote.presentation.features.dashboard
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.nimith.echonote.domain.repository.ServiceStateRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class DashboardViewModel : ViewModel() {
+@HiltViewModel
+class DashboardViewModel @Inject constructor(
+    private val serviceStateRepository: ServiceStateRepository
+) : ViewModel() {
 
     private val _state = MutableStateFlow(DashboardState())
     val state: StateFlow<DashboardState> = _state.asStateFlow()
@@ -23,6 +31,12 @@ class DashboardViewModel : ViewModel() {
             )
         )
         _state.update { it.copy(transcripts = transcripts) }
+    }
+
+    fun onStartNewRecording() {
+        viewModelScope.launch {
+            serviceStateRepository.clearServiceState()
+        }
     }
 
     fun onDeleteTranscript(id: String) {

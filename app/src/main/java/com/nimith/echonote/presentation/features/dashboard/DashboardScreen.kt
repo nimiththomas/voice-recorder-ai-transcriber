@@ -61,8 +61,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nimith.echonote.R
 import com.nimith.echonote.ui.theme.Border
 import com.nimith.echonote.ui.theme.DateColor
@@ -70,7 +70,7 @@ import com.nimith.echonote.ui.theme.TextColor
 
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel = viewModel(),
+    viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToRecording: () -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -93,6 +93,7 @@ fun DashboardScreen(
         onResult = { permissionsMap ->
             val deniedPermissions = permissionsMap.filter { !it.value }.keys
             if (deniedPermissions.isEmpty()) {
+                viewModel.onStartNewRecording()
                 onNavigateToRecording()
             } else {
                 showPermissionDeniedDialogFor = deniedPermissions.toList()
@@ -132,6 +133,7 @@ fun DashboardScreen(
             }.toTypedArray()
 
             if (permissionsToRequest.isEmpty()) {
+                viewModel.onStartNewRecording()
                 onNavigateToRecording()
             } else {
                 permissionLauncher.launch(permissionsToRequest)
@@ -216,7 +218,10 @@ fun PermissionDeniedDialog(
         title = { Text(stringResource(R.string.permission_denied_title)) },
         text = {
             Text(
-                if (goToSettings) stringResource(R.string.permission_denied_settings_message, permissionNames)
+                if (goToSettings) stringResource(
+                    R.string.permission_denied_settings_message,
+                    permissionNames
+                )
                 else stringResource(R.string.mandatory_permission_message, permissionNames)
             )
         },
