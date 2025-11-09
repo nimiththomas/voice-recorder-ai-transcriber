@@ -52,6 +52,9 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
     @Inject
     lateinit var recordingRepository: RecordingRepository
 
+    @Inject
+    lateinit var stateHolder: RecordingStateHolder
+
     private var audioFocusRequest: AudioFocusRequest? = null
     private var silenceDetectionJob: Job? = null
     private var progressUpdateJob: Job? = null
@@ -108,7 +111,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         val initialNotification =
             notificationHelper.createNotification("EchoNote is ready to record")
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             startForeground(
                 NOTIFICATION_ID,
                 initialNotification,
@@ -155,6 +158,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
                 isRecording = true
                 recordingStartTime = SystemClock.elapsedRealtime()
+                stateHolder.update { it.copy(isRecording = true, timerMillis = 0L) }
                 audioRecorder.start(currentRecordingId!!)
                 startSilenceDetection()
                 startProgressUpdates()
@@ -183,6 +187,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
                 }
             }
         }
+        stateHolder.update { it.copy(isRecording = false) }
 
         releaseAudioFocus()
         stopSilenceDetection()
@@ -207,6 +212,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         timeWhenPaused = SystemClock.elapsedRealtime() - recordingStartTime
         stopSilenceDetection()
         stopProgressUpdates()
+        stateHolder.update { it.copy(isRecording = false) }
 
         if (isCall) updateNotification("Paused - Phone call")
         else updateNotification("Paused - Audio focus lost", addResumeAction = true)
@@ -236,10 +242,11 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         }
 
         lifecycleScope.launch {
-            currentRecordingId?.let {
-                val lastChunkIndex = recordingRepository.getLastChunkIndex(it)
-                audioRecorder.start(it, lastChunkIndex)
+            currentRecordingId?.let { recordingId ->
+                val lastChunkIndex = recordingRepository.getLastChunkIndex(recordingId)
+                audioRecorder.start(recordingId, lastChunkIndex)
                 recordingStartTime = SystemClock.elapsedRealtime() - timeWhenPaused
+                stateHolder.update { it.copy(isRecording = true) }
                 startSilenceDetection()
                 startProgressUpdates()
                 updateNotification("Recording")
@@ -263,6 +270,8 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         stopProgressUpdates()
         progressUpdateJob = lifecycleScope.launch {
             while (isRecording && !isPausedByCall && !isPausedByFocusLoss) {
+                val elapsedMillis = SystemClock.elapsedRealtime() - recordingStartTime
+                stateHolder.update { it.copy(timerMillis = elapsedMillis) }
                 updateNotification("Recording in progress...")
                 delay(1000)
             }
@@ -345,4 +354,3 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
     }
 }
-

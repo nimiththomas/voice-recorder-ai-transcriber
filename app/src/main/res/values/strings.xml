@@ -14,4 +14,8 @@
     <string name="notification_permission_message">To ensure the app functions correctly during background recording, please allow notifications. This is due to OS restrictions.</string>
     <string name="allow">Allow</string>
     <string name="continue_without">Continue without</string>
+    <string name="stop_recording_button">Stop Recording</string>
+    <string name="stop_recording_dialog_title">Stop Recording?</string>
+    <string name="stop_recording_dialog_text">If you go back, the recording will be stopped and saved. Are you sure you want to continue?</string>
+    <string name="stop_recording_dialog_confirm">Stop &amp; Save</string>
 </resources>
