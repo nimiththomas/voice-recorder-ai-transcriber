@@ -51,7 +51,11 @@ constructor(
                 .onEach { serviceState ->
                     _state.update {
                         val timer = DateUtils.formatMillis(serviceState.timerMillis)
-                        it.copy(isRecording = serviceState.isRecording, timer = timer)
+                        it.copy(
+                            isRecording = serviceState.isRecording,
+                            isPaused = serviceState.isPaused,
+                            timer = timer
+                        )
                     }
                 }
                 .launchIn(viewModelScope)

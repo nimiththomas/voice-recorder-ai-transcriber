@@ -133,7 +133,7 @@ fun RecordingContent(
     onNavigateBack: () -> Unit
 ) {
     val tabs = listOf("Summary", "Transcript")
-    val pagerState = rememberPagerState(pageCount = { tabs.size }, initialPage = if(state.isRecording) 1 else 0)
+    val pagerState = rememberPagerState(pageCount = { tabs.size }, initialPage = if (state.isRecording) 1 else 0)
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(state.isRecording) {
@@ -149,15 +149,19 @@ fun RecordingContent(
             CenterAlignedTopAppBar(
                 title = {
                     if (state.isRecording) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Circle,
-                                contentDescription = "Recording",
-                                tint = Color.Red,
-                                modifier = Modifier.height(12.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(state.timer)
+                        if (state.isPaused) {
+                            Text("Paused")
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Circle,
+                                    contentDescription = "Recording",
+                                    tint = Color.Red,
+                                    modifier = Modifier.height(12.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(state.timer)
+                            }
                         }
                     } else {
                         Text(
@@ -245,7 +249,7 @@ fun RecordingContent(
 @Composable
 fun SummaryScreen(state: RecordingState) {
     if (state.isRecording) {
-        SummaryLoading()
+        SummaryLoading(state)
     } else {
         if (state.summary.isEmpty()) {
             Box(
@@ -303,28 +307,10 @@ fun SummaryScreen(state: RecordingState) {
 
 
 @Composable
-fun BulletPoint(text: String) {
-    Row(
-        modifier = Modifier.padding(bottom = 8.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Icon(
-            imageVector = Icons.Default.Circle,
-            contentDescription = null,
-            modifier = Modifier
-                .padding(top = 8.dp, end = 8.dp)
-                .height(6.dp),
-            tint = TextColor
-        )
-        Text(text = text, style = MaterialTheme.typography.bodyLarge, color = TextColor)
-    }
-}
-
-@Composable
 fun TranscriptScreen(state: RecordingState) {
     if (state.transcripts.isEmpty()) {
         if (state.isRecording) {
-            LiveTranscriptLoading()
+            LiveTranscriptLoading(state)
         } else {
             Box(
                 modifier = Modifier
@@ -365,7 +351,7 @@ fun TranscriptScreen(state: RecordingState) {
 }
 
 @Composable
-fun LiveTranscriptLoading() {
+fun LiveTranscriptLoading(state: RecordingState) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -380,12 +366,12 @@ fun LiveTranscriptLoading() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
         Text(
-            text = "Live Transcript",
+            text = if (state.isPaused) "Recording Paused" else "Live Transcript",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            text = "Your conversation will appear here with a 30-second delay. The Transcript updates automatically as you speak.",
+            text = if (state.isPaused) "The recording is paused. Resume to continue." else "Your conversation will appear here with a 30-second delay. The Transcript updates automatically as you speak.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = DateColor
@@ -394,7 +380,7 @@ fun LiveTranscriptLoading() {
 }
 
 @Composable
-fun SummaryLoading() {
+fun SummaryLoading(state: RecordingState) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -403,12 +389,12 @@ fun SummaryLoading() {
             .padding(16.dp)
     ) {
         Text(
-            text = "Recording in progress...",
+            text = if (state.isPaused) "Recording Paused" else "Recording in progress...",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            text = "The summary will be generated here after the recording is complete.",
+            text = if (state.isPaused) "The recording is paused. Resume to continue." else "The summary will be generated here after the recording is complete.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = DateColor
@@ -439,6 +425,16 @@ fun RecordingScreenPreview() {
 fun RecordingScreenLoadingPreview() {
     RecordingContent(
         state = RecordingState(isRecording = true, timer = "00:15"),
+        onStopRecording = {},
+        onNavigateBack = {}
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RecordingScreenPausedPreview() {
+    RecordingContent(
+        state = RecordingState(isRecording = true, isPaused = true, timer = "00:15"),
         onStopRecording = {},
         onNavigateBack = {}
     )

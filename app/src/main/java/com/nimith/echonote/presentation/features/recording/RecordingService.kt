@@ -287,7 +287,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         timeWhenPaused = SystemClock.elapsedRealtime() - recordingStartTime
         stopSilenceDetection()
         stopProgressUpdates()
-        stateHolder.update { it.copy(isRecording = false) }
+        stateHolder.update { it.copy(isRecording = true, isPaused = true) }
 
         if (isCall) updateNotification("Paused - Phone call")
         else updateNotification("Paused - Audio focus lost", addResumeAction = true)
@@ -322,7 +322,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
                 val lastChunkIndex = recordingRepository.getLastChunkIndex(recordingId)
                 audioRecorder.start(recordingId, lastChunkIndex)
                 recordingStartTime = SystemClock.elapsedRealtime() - timeWhenPaused
-                stateHolder.update { it.copy(isRecording = true) }
+                stateHolder.update { it.copy(isRecording = true, isPaused = false) }
                 startSilenceDetection()
                 startProgressUpdates()
                 updateNotification("Recording")

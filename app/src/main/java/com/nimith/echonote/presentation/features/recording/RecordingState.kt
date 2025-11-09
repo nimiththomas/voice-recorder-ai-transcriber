@@ -7,6 +7,7 @@ data class Transcript(
 
 data class RecordingState(
     val isRecording: Boolean = true,
+    val isPaused: Boolean = false,
     val timer: String = "00:00",
     val summary: String = "",
     val transcripts: List<Transcript> = emptyList(),
