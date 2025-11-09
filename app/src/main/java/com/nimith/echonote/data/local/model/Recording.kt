@@ -17,5 +17,5 @@ data class Recording(
     val createdAt: Long,
     val duration: Long,
     val transcriptionStatus: TranscriptionStatus,
-    val transcription: String? = null
+    val summary: String? = null
 )

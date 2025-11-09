@@ -8,6 +8,7 @@ interface RecordingRepository {
     suspend fun insertRecording(recording: Recording): Long
     fun getRecording(id: Long): Flow<Recording?>
     suspend fun updateRecording(recording: Recording)
+    suspend fun updateRecordingSummary(recordingId: Long, summary: String?)
     suspend fun getLastChunkIndex(recordingId: Long): Int?
     suspend fun insertChunk(chunk: AudioChunk): Long
     fun getLatestRecording(): Flow<Recording?>

@@ -15,6 +15,9 @@ interface RecordingDao {
     @Update
     suspend fun updateRecording(recording: Recording)
 
+    @Query("UPDATE recordings SET summary = :summary WHERE id = :recordingId")
+    suspend fun updateSummary(recordingId: Long, summary: String?)
+
     @Query("SELECT * FROM recordings WHERE id = :id")
     fun getRecording(id: Long): Flow<Recording?>
 

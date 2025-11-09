@@ -13,13 +13,17 @@ import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import android.telephony.TelephonyManager
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.nimith.echonote.core.recorder.AudioRecorder
 import com.nimith.echonote.data.local.model.Recording
 import com.nimith.echonote.data.local.model.ServiceState
 import com.nimith.echonote.data.local.model.TranscriptionStatus
-import com.nimith.echonote.core.recorder.AudioRecorder
 import com.nimith.echonote.domain.repository.RecordingRepository
 import com.nimith.echonote.domain.repository.ServiceStateRepository
 import com.nimith.echonote.presentation.common.Constants.ACTION_PAUSE
@@ -29,6 +33,7 @@ import com.nimith.echonote.presentation.common.Constants.ACTION_STOP
 import com.nimith.echonote.presentation.common.Constants.NOTIFICATION_ID
 import com.nimith.echonote.presentation.common.NotificationHelper
 import com.nimith.echonote.presentation.common.StorageUtils
+import com.nimith.echonote.workers.SummarizationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -148,6 +153,12 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
         return START_STICKY
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(phoneStateReceiver)
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+    }
+
     private fun start() {
         lifecycleScope.launch {
             if (isRecording) return@launch
@@ -216,6 +227,41 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
                 }
             }
         }
+        currentRecordingId?.let {
+            val summarizationWorkRequest = OneTimeWorkRequestBuilder<SummarizationWorker>()
+                .setInputData(workDataOf("recordingId" to it))
+                .build()
+            WorkManager.getInstance(applicationContext).enqueue(summarizationWorkRequest)
+            Log.d("RecordingService", "SummarizationWorker enqueued for recordingId: $it")
+        }
+
+        stateHolder.update { it.copy(isRecording = false, recordingId = null) }
+
+        releaseAudioFocus()
+        stopSilenceDetection()
+        stopProgressUpdates()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    private fun handleRecordingFailure() {
+        if (!isRecording && currentRecordingId == null) return
+
+        isRecording = false
+
+        lifecycleScope.launch {
+            audioRecorder.stop()
+            serviceStateRepository.clearServiceState()
+            currentRecordingId?.let {
+                val recording = recordingRepository.getRecording(it).firstOrNull()
+                recording?.let { rec ->
+                    val updatedRecording = rec.copy(
+                        transcriptionStatus = TranscriptionStatus.FAILED
+                    )
+                    recordingRepository.updateRecording(updatedRecording)
+                }
+            }
+        }
         stateHolder.update { it.copy(isRecording = false, recordingId = null) }
 
         releaseAudioFocus()
@@ -267,7 +313,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
 
         if (!requestAudioFocus()) {
             Toast.makeText(this, "Could not regain audio focus.", Toast.LENGTH_SHORT).show()
-            stop()
+            handleRecordingFailure()
             return
         }
 
@@ -308,7 +354,7 @@ class RecordingService : LifecycleService(), AudioManager.OnAudioFocusChangeList
                     updateNotification("Recording")
                 } else {
                     Toast.makeText(this@RecordingService, "Could not regain audio focus on restart.", Toast.LENGTH_SHORT).show()
-                    stop()
+                    handleRecordingFailure()
                 }
             }
         }

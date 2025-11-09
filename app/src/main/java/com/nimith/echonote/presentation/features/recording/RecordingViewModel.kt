@@ -55,6 +55,19 @@ constructor(
             .map { it?.recordingId }
             .filterNotNull()
             .flatMapLatest { recordingId ->
+                recordingRepository.getRecording(recordingId)
+            }
+            .onEach { recording ->
+                _state.update {
+                    it.copy(summary = recording?.summary ?: "")
+                }
+            }
+            .launchIn(viewModelScope)
+
+        serviceStateRepository.serviceState
+            .map { it?.recordingId }
+            .filterNotNull()
+            .flatMapLatest { recordingId ->
                 recordingRepository.getCompletedChunksForRecording(recordingId)
             }
             .onEach { chunks ->

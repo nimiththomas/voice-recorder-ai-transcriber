@@ -91,6 +91,7 @@ class AudioRecorder @Inject constructor(
                         BackoffPolicy.EXPONENTIAL,
                         1, TimeUnit.MINUTES
                     )
+                    .addTag("$TRANSCRIPTION_WORK_TAG_PREFIX$recordingId")
                     .build()
                 WorkManager.getInstance(context).enqueue(workRequest)
 
@@ -144,5 +145,6 @@ class AudioRecorder @Inject constructor(
         private const val LOG_TAG = "AudioRecorder"
         private const val CHUNK_DURATION_MS = 30_000L
         private const val CHUNK_OVERLAP_MS = 2_000L
+        const val TRANSCRIPTION_WORK_TAG_PREFIX = "transcription_"
     }
 }

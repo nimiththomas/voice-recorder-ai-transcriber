@@ -2,7 +2,9 @@ package com.nimith.echonote.di
 
 import com.nimith.echonote.data.remote.api.TranscriptionService
 import com.nimith.echonote.BuildConfig
+import com.nimith.echonote.data.remote.api.MockSummarizationService
 import com.nimith.echonote.data.remote.api.MockTranscriptionService
+import com.nimith.echonote.data.remote.api.SummarizationService
 import com.nimith.echonote.presentation.common.Constants
 import dagger.Module
 import dagger.Provides
@@ -32,6 +34,16 @@ object NetworkModule {
             MockTranscriptionService()
         } else {
             retrofit.create(TranscriptionService::class.java)
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideSummarizationService(retrofit: Retrofit): SummarizationService {
+        return if (BuildConfig.OPENAI_API_KEY.isEmpty()) {
+            MockSummarizationService()
+        } else {
+            retrofit.create(SummarizationService::class.java)
         }
     }
 }

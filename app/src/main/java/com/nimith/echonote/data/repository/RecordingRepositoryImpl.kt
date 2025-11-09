@@ -24,6 +24,10 @@ class RecordingRepositoryImpl @Inject constructor(
         recordingDao.updateRecording(recording)
     }
 
+    override suspend fun updateRecordingSummary(recordingId: Long, summary: String?) {
+        recordingDao.updateSummary(recordingId, summary)
+    }
+
     override suspend fun getLastChunkIndex(recordingId: Long): Int? {
         return audioChunkDao.getLastChunkIndex(recordingId)
     }

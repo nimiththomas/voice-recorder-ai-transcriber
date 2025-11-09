@@ -41,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -59,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nimith.echonote.R
 import com.nimith.echonote.ui.theme.DateColor
 import com.nimith.echonote.ui.theme.TextColor
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -158,7 +160,9 @@ fun RecordingContent(
                             Text(state.timer)
                         }
                     } else {
-                        Text("Brief Poetic Expression...")
+                        Text(
+                            state.summary.split(" ").take(2).joinToString(" ")
+                        )
                     }
                 },
                 navigationIcon = {
@@ -243,43 +247,60 @@ fun SummaryScreen(state: RecordingState) {
     if (state.isRecording) {
         SummaryLoading()
     } else {
-        Column(modifier = Modifier.fillMaxSize()) {
+        if (state.summary.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp), contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Too short to generate summary",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            val summaryWords = state.summary.split(" ")
+            val summaryTitle = summaryWords.take(2).joinToString(" ")
+            val summaryContent = summaryWords.drop(2).joinToString(" ")
+
+            var hasAnimated by rememberSaveable(state.summary) { mutableStateOf(false) }
+            var displayedText by remember { mutableStateOf(if (hasAnimated) summaryContent else "") }
+
+            LaunchedEffect(state.summary) {
+                if (!hasAnimated) {
+                    summaryContent.forEach { char ->
+                        displayedText += char
+                        delay(10)
+                    }
+                    hasAnimated = true
+                }
+            }
+
             LazyColumn(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxSize()
                     .padding(16.dp)
             ) {
                 item {
                     Text(
-                        text = "Poetic Expression",
+                        text = summaryTitle,
                         style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }
                 item {
-                    BulletPoint("Speaker makes lyrical statement about roses being everywhere")
-                    BulletPoint(
-                        "Requests to see a \"pretty flower\\n                    \" in specific location (\\\" right there\\n                    \\\")"
-                    )
-                    BulletPoint("Brief, romantic or appreciative tone regarding flowers/nature")
-                }
-                item {
-                    Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "Action Items",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                    Text(
-                        text = "No specific action items identified from this brief poetic expression",
-                        color = DateColor,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = displayedText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextColor
                     )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun BulletPoint(text: String) {
@@ -302,7 +323,21 @@ fun BulletPoint(text: String) {
 @Composable
 fun TranscriptScreen(state: RecordingState) {
     if (state.transcripts.isEmpty()) {
-        LiveTranscriptLoading()
+        if (state.isRecording) {
+            LiveTranscriptLoading()
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp), contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No transcript found",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
     } else {
         LazyColumn(
             modifier = Modifier
@@ -388,6 +423,7 @@ fun RecordingScreenPreview() {
     RecordingContent(
         state = RecordingState(
             isRecording = false,
+            summary = "This is a summary of the recording.",
             transcripts = listOf(
                 Transcript("Roses, roses everywhere.", "12:14"),
                 Transcript("Can I see my pretty flower right there?", "12:15")

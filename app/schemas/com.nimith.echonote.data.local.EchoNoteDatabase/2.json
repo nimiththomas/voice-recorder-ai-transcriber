@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "c23f99f3813956288a4c4852e12f7481",
+    "identityHash": "853faefb7e281c29ca8e59baf0dae897",
     "entities": [
       {
         "tableName": "recordings",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `transcriptionStatus` TEXT NOT NULL, `transcription` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `title` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `duration` INTEGER NOT NULL, `transcriptionStatus` TEXT NOT NULL, `summary` TEXT)",
         "fields": [
           {
             "fieldPath": "id",
@@ -39,8 +39,8 @@
             "notNull": true
           },
           {
-            "fieldPath": "transcription",
-            "columnName": "transcription",
+            "fieldPath": "summary",
+            "columnName": "summary",
             "affinity": "TEXT"
           }
         ],
@@ -131,7 +131,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c23f99f3813956288a4c4852e12f7481')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '853faefb7e281c29ca8e59baf0dae897')"
     ]
   }
 }
