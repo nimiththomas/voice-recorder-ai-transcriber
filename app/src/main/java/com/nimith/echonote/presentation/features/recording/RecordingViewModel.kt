@@ -1,5 +1,6 @@
 package com.nimith.echonote.presentation.features.recording
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nimith.echonote.domain.repository.RecordingRepository
@@ -12,6 +13,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -26,6 +28,7 @@ import javax.inject.Inject
 class RecordingViewModel
 @Inject
 constructor(
+    savedStateHandle: SavedStateHandle,
     recordingStateHolder: RecordingStateHolder,
     private val recordingRepository: RecordingRepository,
     serviceStateRepository: ServiceStateRepository
@@ -40,49 +43,78 @@ constructor(
     private var isStarted = false
 
     init {
-        onStart()
+        val recordingId = savedStateHandle.get<String>("recordingId")
+        if (recordingId == null) {
+            onStart()
 
-        recordingStateHolder.state
-            .onEach { serviceState ->
-                _state.update {
-                    val timer = DateUtils.formatMillis(serviceState.timerMillis)
-                    it.copy(isRecording = serviceState.isRecording, timer = timer)
+            recordingStateHolder.state
+                .onEach { serviceState ->
+                    _state.update {
+                        val timer = DateUtils.formatMillis(serviceState.timerMillis)
+                        it.copy(isRecording = serviceState.isRecording, timer = timer)
+                    }
                 }
-            }
-            .launchIn(viewModelScope)
+                .launchIn(viewModelScope)
 
-        serviceStateRepository.serviceState
-            .map { it?.recordingId }
-            .filterNotNull()
-            .flatMapLatest { recordingId ->
-                recordingRepository.getRecording(recordingId)
-            }
-            .onEach { recording ->
-                _state.update {
-                    it.copy(summary = recording?.summary ?: "")
+            serviceStateRepository.serviceState
+                .map { it?.recordingId }
+                .filterNotNull()
+                .flatMapLatest { newRecordingId ->
+                    recordingRepository.getRecording(newRecordingId)
                 }
-            }
-            .launchIn(viewModelScope)
+                .onEach { recording ->
+                    _state.update {
+                        it.copy(summary = recording?.summary ?: "")
+                    }
+                }
+                .launchIn(viewModelScope)
 
-        serviceStateRepository.serviceState
-            .map { it?.recordingId }
-            .filterNotNull()
-            .flatMapLatest { recordingId ->
-                recordingRepository.getCompletedChunksForRecording(recordingId)
-            }
-            .onEach { chunks ->
-                _state.update {
-                    val transcripts =
-                        chunks.mapNotNull { chunk ->
-                            chunk.transcription?.let {
-                                val time = DateUtils.formatTimestamp(chunk.createdAt)
-                                Transcript(it, time)
+            serviceStateRepository.serviceState
+                .map { it?.recordingId }
+                .filterNotNull()
+                .flatMapLatest { newRecordingId ->
+                    recordingRepository.getCompletedChunksForRecording(newRecordingId)
+                }
+                .onEach { chunks ->
+                    _state.update {
+                        val transcripts =
+                            chunks.mapNotNull { chunk ->
+                                chunk.transcription?.let {
+                                    val time = DateUtils.formatTimestamp(chunk.createdAt)
+                                    Transcript(it, time)
+                                }
                             }
-                        }
-                    it.copy(transcripts = transcripts)
+                        it.copy(transcripts = transcripts)
+                    }
+                }
+                .launchIn(viewModelScope)
+        } else {
+            viewModelScope.launch {
+                val recording =
+                    recordingRepository.getRecording(recordingId.toLong()).filterNotNull().first()
+                _state.update {
+                    it.copy(
+                        isRecording = false,
+                        summary = recording.summary ?: "",
+                        timer = DateUtils.formatMillis(recording.duration)
+                    )
                 }
             }
-            .launchIn(viewModelScope)
+            recordingRepository.getChunksForRecording(recordingId.toLong())
+                .onEach { chunks ->
+                    _state.update {
+                        val transcripts =
+                            chunks.mapNotNull { chunk ->
+                                chunk.transcription?.let {
+                                    val time = DateUtils.formatTimestamp(chunk.createdAt)
+                                    Transcript(it, time)
+                                }
+                            }
+                        it.copy(transcripts = transcripts)
+                    }
+                }
+                .launchIn(viewModelScope)
+        }
     }
 
     fun onEvent(action: RecordingAction) {

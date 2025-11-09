@@ -133,7 +133,7 @@ fun RecordingContent(
     onNavigateBack: () -> Unit
 ) {
     val tabs = listOf("Summary", "Transcript")
-    val pagerState = rememberPagerState(pageCount = { tabs.size }, initialPage = 1)
+    val pagerState = rememberPagerState(pageCount = { tabs.size }, initialPage = if(state.isRecording) 1 else 0)
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(state.isRecording) {

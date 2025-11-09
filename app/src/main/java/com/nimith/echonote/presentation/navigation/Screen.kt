@@ -7,5 +7,5 @@ sealed class Screen {
     object Dashboard : Screen()
 
     @Serializable
-    object Recording : Screen()
+    data class Recording(val recordingId: String? = null) : Screen()
 }

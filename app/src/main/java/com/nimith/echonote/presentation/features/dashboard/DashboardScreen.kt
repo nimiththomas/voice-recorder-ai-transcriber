@@ -71,7 +71,8 @@ import com.nimith.echonote.ui.theme.TextColor
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
-    onNavigateToRecording: () -> Unit
+    onNavigateToRecording: () -> Unit,
+    onNavigateToRecordingWithId: (String) -> Unit
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showPermissionDeniedDialogFor by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
@@ -138,7 +139,8 @@ fun DashboardScreen(
             } else {
                 permissionLauncher.launch(permissionsToRequest)
             }
-        }
+        },
+        onTranscriptClick = onNavigateToRecordingWithId
     )
 }
 
@@ -147,7 +149,8 @@ fun DashboardScreen(
 fun DashboardContent(
     state: DashboardState,
     onDeleteTranscript: (String) -> Unit,
-    onCaptureNotesClick: () -> Unit
+    onCaptureNotesClick: () -> Unit,
+    onTranscriptClick: (String) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -190,7 +193,7 @@ fun DashboardContent(
                 items(transcripts) { transcript ->
                     TranscriptListItem(transcript, onDelete = {
                         onDeleteTranscript(transcript.id)
-                    })
+                    }, onClick = { onTranscriptClick(transcript.id) })
                 }
             }
         }
@@ -243,7 +246,7 @@ fun PermissionDeniedDialog(
 
 
 @Composable
-fun TranscriptListItem(transcript: TranscriptItem, onDelete: () -> Unit) {
+fun TranscriptListItem(transcript: TranscriptItem, onDelete: () -> Unit, onClick: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
@@ -253,7 +256,8 @@ fun TranscriptListItem(transcript: TranscriptItem, onDelete: () -> Unit) {
                 .fillMaxWidth()
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onLongPress = { showMenu = true }
+                        onLongPress = { showMenu = true },
+                        onTap = { onClick() }
                     )
                 },
             verticalAlignment = Alignment.CenterVertically
@@ -332,7 +336,8 @@ fun DashboardContentPreview() {
     DashboardContent(
         state = DashboardState(transcripts),
         onDeleteTranscript = {},
-        onCaptureNotesClick = {}
+        onCaptureNotesClick = {},
+        onTranscriptClick = {}
     )
 
 }

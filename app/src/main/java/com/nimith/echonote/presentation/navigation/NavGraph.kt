@@ -15,9 +15,11 @@ fun EchoNoteNavGraph() {
         startDestination = Screen.Dashboard
     ) {
         composable<Screen.Dashboard> {
-            DashboardScreen {
-                navController.navigate(Screen.Recording)
-            }
+            DashboardScreen(onNavigateToRecording = {
+                navController.navigate(Screen.Recording())
+            }, onNavigateToRecordingWithId = {
+                navController.navigate(Screen.Recording(recordingId = it))
+            })
         }
         composable<Screen.Recording> {
             RecordingScreen {
