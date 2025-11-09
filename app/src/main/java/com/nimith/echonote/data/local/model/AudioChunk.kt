@@ -2,6 +2,7 @@ package com.nimith.echonote.data.local.model
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 enum class UploadStatus {
@@ -20,7 +21,8 @@ enum class UploadStatus {
             childColumns = ["recordingId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["recordingId"])]
 )
 data class AudioChunk(
     @PrimaryKey(autoGenerate = true)

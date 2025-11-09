@@ -4,6 +4,7 @@ import com.nimith.echonote.data.local.AudioChunkDao
 import com.nimith.echonote.data.local.RecordingDao
 import com.nimith.echonote.data.local.model.AudioChunk
 import com.nimith.echonote.data.local.model.Recording
+import com.nimith.echonote.domain.repository.RecordingRepository
 import javax.inject.Inject
 
 class RecordingRepositoryImpl @Inject constructor(

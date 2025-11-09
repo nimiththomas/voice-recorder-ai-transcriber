@@ -19,7 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.nimith.echonote.data.local.model.Recording
 import com.nimith.echonote.data.local.model.TranscriptionStatus
 import com.nimith.echonote.data.recorder.AudioRecorder
-import com.nimith.echonote.data.repository.RecordingRepository
+import com.nimith.echonote.domain.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.Constants.ACTION_PAUSE
 import com.nimith.echonote.presentation.common.Constants.ACTION_RESUME
 import com.nimith.echonote.presentation.common.Constants.ACTION_START

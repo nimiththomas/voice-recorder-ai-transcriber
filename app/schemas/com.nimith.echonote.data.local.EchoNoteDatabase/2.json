@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "402bf519e0f79b17bbbe91af8361856d",
+    "identityHash": "b9d6bc3b20a15ed335f7b8445ba99027",
     "entities": [
       {
         "tableName": "recordings",
@@ -92,6 +92,17 @@
             "id"
           ]
         },
+        "indices": [
+          {
+            "name": "index_audio_chunks_recordingId",
+            "unique": false,
+            "columnNames": [
+              "recordingId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_audio_chunks_recordingId` ON `${TABLE_NAME}` (`recordingId`)"
+          }
+        ],
         "foreignKeys": [
           {
             "table": "recordings",
@@ -109,7 +120,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '402bf519e0f79b17bbbe91af8361856d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b9d6bc3b20a15ed335f7b8445ba99027')"
     ]
   }
 }

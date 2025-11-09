@@ -20,4 +20,12 @@ object Constants {
     const val RECORDING_DIRECTORY = "recordings"
     const val RECORDING_FILE_PREFIX = "recording_"
     const val RECORDING_FILE_SUFFIX = ".mp4"
+
+    const val BASE_URL = "https://api.openai.com/"
+
+    const val MEDIA_TYPE_AUDIO = "audio/*"
+    const val PART_NAME_FILE = "file"
+    const val TRANSCRIPTION_MODEL = "whisper-1"
+    const val MEDIA_TYPE_TEXT_PLAIN = "text/plain"
+    const val AUTH_BEARER = "Bearer "
 }

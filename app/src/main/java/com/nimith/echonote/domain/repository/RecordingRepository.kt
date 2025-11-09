@@ -1,4 +1,4 @@
-package com.nimith.echonote.data.repository
+package com.nimith.echonote.domain.repository
 
 import com.nimith.echonote.data.local.model.AudioChunk
 import com.nimith.echonote.data.local.model.Recording

@@ -6,7 +6,7 @@ import android.os.Build
 import android.util.Log
 import com.nimith.echonote.data.local.model.AudioChunk
 import com.nimith.echonote.data.local.model.UploadStatus
-import com.nimith.echonote.data.repository.RecordingRepository
+import com.nimith.echonote.domain.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.FileUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
