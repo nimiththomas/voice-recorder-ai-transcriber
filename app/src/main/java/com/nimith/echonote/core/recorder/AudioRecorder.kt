@@ -9,10 +9,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.nimith.echonote.data.local.model.AudioChunk
+import com.nimith.echonote.core.workers.TranscriptionWorker
 import com.nimith.echonote.data.local.model.UploadStatus
 import com.nimith.echonote.domain.repository.RecordingRepository
 import com.nimith.echonote.presentation.common.FileUtils
-import com.nimith.echonote.worker.TranscriptionWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

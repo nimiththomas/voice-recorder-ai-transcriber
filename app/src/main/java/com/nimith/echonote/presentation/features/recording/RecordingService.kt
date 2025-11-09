@@ -33,7 +33,7 @@ import com.nimith.echonote.presentation.common.Constants.ACTION_STOP
 import com.nimith.echonote.presentation.common.Constants.NOTIFICATION_ID
 import com.nimith.echonote.presentation.common.NotificationHelper
 import com.nimith.echonote.presentation.common.StorageUtils
-import com.nimith.echonote.workers.SummarizationWorker
+import com.nimith.echonote.core.workers.SummarizationWorker
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

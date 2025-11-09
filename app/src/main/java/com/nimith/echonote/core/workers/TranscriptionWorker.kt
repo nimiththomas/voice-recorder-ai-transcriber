@@ -1,4 +1,4 @@
-package com.nimith.echonote.worker
+package com.nimith.echonote.core.workers
 
 import android.content.Context
 import android.content.pm.ServiceInfo
@@ -7,6 +7,7 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import com.nimith.echonote.core.network.NetworkResult
 import com.nimith.echonote.data.local.model.UploadStatus
 import com.nimith.echonote.data.remote.models.TranscriptionResponse
 import com.nimith.echonote.domain.repository.RecordingRepository
@@ -60,13 +61,13 @@ class TranscriptionWorker @AssistedInject constructor(
 
         return when (val result = transcriptionRepository.transcribe(file)) {
 
-            is com.nimith.echonote.core.network.NetworkResult.Error -> {
+            is NetworkResult.Error -> {
                 audioChunk.uploadStatus = UploadStatus.FAILED
                 recordingRepository.updateChunk(audioChunk)
                 Result.retry()
             }
 
-            is com.nimith.echonote.core.network.NetworkResult.Success<TranscriptionResponse> -> {
+            is NetworkResult.Success<TranscriptionResponse> -> {
                 audioChunk.transcription = result.data.text
                 audioChunk.uploadStatus = UploadStatus.COMPLETED
                 recordingRepository.updateChunk(audioChunk)

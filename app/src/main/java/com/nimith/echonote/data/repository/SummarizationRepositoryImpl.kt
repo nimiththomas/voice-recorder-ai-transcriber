@@ -1,5 +1,6 @@
 package com.nimith.echonote.data.repository
 
+import com.nimith.echonote.BuildConfig
 import com.nimith.echonote.data.remote.api.SummarizationService
 import com.nimith.echonote.data.remote.models.SummarizationRequest
 import com.nimith.echonote.data.remote.models.SummarizationResponse
@@ -15,6 +16,6 @@ class SummarizationRepositoryImpl @Inject constructor(
             model = "gpt-4.1",
             input = text
         )
-        return summarizationService.summarize("", request)
+        return summarizationService.summarize(BuildConfig.OPENAI_API_KEY, request)
     }
 }

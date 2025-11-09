@@ -1,4 +1,4 @@
-package com.nimith.echonote.workers
+package com.nimith.echonote.core.workers
 
 import android.content.Context
 import android.util.Log
