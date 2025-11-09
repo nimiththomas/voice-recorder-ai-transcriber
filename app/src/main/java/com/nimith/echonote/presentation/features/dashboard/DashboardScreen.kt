@@ -188,9 +188,9 @@ fun DashboardContent(
                     )
                 }
                 items(transcripts) { transcript ->
-                    TranscriptListItem(transcript) {
+                    TranscriptListItem(transcript, onDelete = {
                         onDeleteTranscript(transcript.id)
-                    }
+                    })
                 }
             }
         }
@@ -321,11 +321,11 @@ fun TranscriptListItem(transcript: TranscriptItem, onDelete: () -> Unit) {
 @Composable
 fun DashboardContentPreview() {
     val transcripts = mapOf(
-        "Today" to listOf(
+        "10/07/2024" to listOf(
             TranscriptItem("1", "Brief Audio Fragment - Motivational", "10:38 AM", "52s"),
             TranscriptItem("2", "Lecture Summary", "11:30 AM", "30m")
         ),
-        "Yesterday" to listOf(
+        "09/07/2024" to listOf(
             TranscriptItem("3", "Brainstorming Session", "2:00 PM", "15m")
         )
     )

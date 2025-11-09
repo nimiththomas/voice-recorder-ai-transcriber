@@ -1,6 +1,7 @@
 package com.nimith.echonote.data.local
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
@@ -23,4 +24,10 @@ interface RecordingDao {
 
     @Query("SELECT * FROM recordings ORDER BY createdAt DESC LIMIT 1")
     fun getLatestRecording(): Flow<Recording?>
+
+    @Query("SELECT * FROM recordings WHERE summary IS NOT NULL ORDER BY createdAt DESC")
+    fun getRecordingsWithSummary(): Flow<List<Recording>>
+
+    @Delete
+    suspend fun deleteRecording(recording: Recording)
 }

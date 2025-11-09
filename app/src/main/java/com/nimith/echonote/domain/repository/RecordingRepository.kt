@@ -16,4 +16,6 @@ interface RecordingRepository {
     suspend fun getChunk(recordingId: Long, chunkIndex: Int): AudioChunk?
     suspend fun updateChunk(chunk: AudioChunk)
     fun getCompletedChunksForRecording(recordingId: Long): Flow<List<AudioChunk>>
+    fun getRecordingsWithSummary(): Flow<List<Recording>>
+    suspend fun deleteRecording(recording: Recording)
 }

@@ -55,4 +55,12 @@ class RecordingRepositoryImpl @Inject constructor(
     override fun getCompletedChunksForRecording(recordingId: Long): Flow<List<AudioChunk>> {
         return audioChunkDao.getCompletedChunksForRecording(recordingId)
     }
+
+    override fun getRecordingsWithSummary(): Flow<List<Recording>> {
+        return recordingDao.getRecordingsWithSummary()
+    }
+
+    override suspend fun deleteRecording(recording: Recording) {
+        recordingDao.deleteRecording(recording)
+    }
 }

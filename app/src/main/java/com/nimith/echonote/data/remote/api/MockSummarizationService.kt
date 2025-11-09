@@ -17,18 +17,16 @@ class MockSummarizationService : SummarizationService {
         "Lecture on ancient history: The topic was the rise and fall of the Roman Empire. The professor highlighted the economic and political factors that contributed to its decline.",
         "A recipe for a chocolate cake. The ingredients are flour, sugar, cocoa powder, eggs, and butter. The instructions are to mix the dry ingredients, then add the wet ingredients, and bake at 350 degrees for 30 minutes.",
         "A travel blog about a trip to Japan. The author describes their visits to Tokyo, Kyoto, and Osaka. They recommend trying the local street food and visiting the temples in Kyoto.",
-        "A summary of a book on productivity. The main takeaway is the importance of setting clear goals and breaking them down into smaller, manageable tasks. The book also suggests using the Pomodoro Technique to stay focused."
+        "A summary of a book on productivity. The main takeaway is the importance of setting clear goals and breaking them down into smaller, manageable tasks. The book also suggests using the Pomodoro Technique to stay focused.",
+        "Review of a new sci-fi movie: The plot was captivating, with stunning visual effects and a thought-provoking exploration of artificial intelligence. A must-see for fans of the genre."
     )
-
-    private var currentIndex = 0
 
     override suspend fun summarize(
         authorization: String,
         request: SummarizationRequest
     ): SummarizationResponse {
         delay(1000) // Simulate network delay
-        val summary = summaries[currentIndex]
-        currentIndex = (currentIndex + 1) % summaries.size
+        val summary = summaries.random()
         return SummarizationResponse(
             output = listOf(
                 OutputMessage(
